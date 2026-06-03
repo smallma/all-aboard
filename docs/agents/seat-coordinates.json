@@ -1,0 +1,130 @@
+{
+  "轎車": {
+    "driver": {
+      "xPct": 37,
+      "yPct": 48
+    },
+    "seats": [
+      {
+        "index": 0,
+        "label": "副駕",
+        "xPct": 62,
+        "yPct": 48
+      },
+      {
+        "index": 1,
+        "label": "後排-左",
+        "xPct": 37,
+        "yPct": 64
+      },
+      {
+        "index": 2,
+        "label": "後排-中",
+        "xPct": 50,
+        "yPct": 67
+      },
+      {
+        "index": 3,
+        "label": "後排-右",
+        "xPct": 63,
+        "yPct": 64
+      }
+    ],
+    "trunk": {
+      "xPct": 50,
+      "yPct": 80,
+      "wPct": 50,
+      "hPct": 17
+    }
+  },
+  "MPV": {
+    "driver": {
+      "xPct": 37,
+      "yPct": 43
+    },
+    "seats": [
+      {
+        "index": 0,
+        "label": "副駕",
+        "xPct": 62,
+        "yPct": 43
+      },
+      {
+        "index": 1,
+        "label": "中排-左",
+        "xPct": 37,
+        "yPct": 57
+      },
+      {
+        "index": 2,
+        "label": "中排-右",
+        "xPct": 62,
+        "yPct": 57
+      },
+      {
+        "index": 3,
+        "label": "後排-左",
+        "xPct": 37,
+        "yPct": 74
+      },
+      {
+        "index": 4,
+        "label": "後排-中",
+        "xPct": 50,
+        "yPct": 76
+      },
+      {
+        "index": 5,
+        "label": "後排-右",
+        "xPct": 63,
+        "yPct": 74
+      }
+    ],
+    "trunk": {
+      "xPct": 50,
+      "yPct": 91,
+      "wPct": 48,
+      "hPct": 8
+    }
+  },
+  "貨車": {
+    "driver": {
+      "xPct": 37,
+      "yPct": 39
+    },
+    "seats": [
+      {
+        "index": 0,
+        "label": "副駕",
+        "xPct": 62,
+        "yPct": 39
+      }
+    ],
+    "trunk": {
+      "xPct": 50,
+      "yPct": 67,
+      "wPct": 57,
+      "hPct": 45
+    }
+  },
+  "皮卡": {
+    "driver": {
+      "xPct": 37,
+      "yPct": 44
+    },
+    "seats": [
+      {
+        "index": 0,
+        "label": "副駕",
+        "xPct": 62,
+        "yPct": 44
+      }
+    ],
+    "trunk": {
+      "xPct": 50,
+      "yPct": 77,
+      "wPct": 58,
+      "hPct": 34
+    }
+  }
+}

@@ -1,0 +1,315 @@
+=== codex inbox（claude → codex） ===
+
+說明：本檔由 claude 寫入任務、codex 讀取執行。
+完工後請在對應 TASK 末尾標 STATUS: DONE 並補 RESULT 行。
+若有問題或要回覆 claude，請寫到 claude-inbox.txt。
+
+⚠️ 每次接任務前必讀：docs/agents/coding-conventions.md
+⚠️ 詳細協作流程：docs/agents/README.txt
+
+== 目前任務 ==
+
+=== TASK #001 ===
+FROM: claude
+TO: codex
+TOPIC: 素材搬移到 public/
+PRIORITY: high
+CREATED: 2026-05-26
+SPEC: §3.1（素材搬移段）
+INTERFACE:
+  bash 指令操作，不涉及 React 元件
+DEPENDENCIES:
+  - 來源：src/image/vehicles/、src/image/Avatar/
+  - 目標：public/vehicles/、public/avatars/
+ACCEPTANCE:
+  - [ ] public/vehicles/ 內有 8 個 PNG（sedan-base.png, sedan-mask.png, ...）
+  - [ ] public/avatars/ 內有 48 個 PNG + manifest.json
+  - [ ] 原始 src/image/ 內容完全不動（只 cp 不 mv）
+---
+規格：
+
+1. 等待 TASK #003 完成（Next.js 專案初始化建立 public/）
+2. 然後執行：
+   mkdir -p public/vehicles public/avatars
+   cp src/image/vehicles/*.png public/vehicles/
+   cp src/image/Avatar/*.png public/avatars/
+   cp src/image/Avatar/manifest.json public/avatars/
+3. RESULT 列出 ls public/vehicles/ 和 ls public/avatars/ 的輸出
+
+注意：
+- TASK #003 是 claude 負責的 Next.js 專案初始化，public/ 目錄會在那之後建立
+- 若 public/ 還不存在，請寫到 claude-inbox.txt 標 [BLOCKED]，等 #003 完成
+- 不要動 src/image/ 下的 LICENSE.md
+---
+STATUS: PENDING
+STATUS: BLOCKED
+RESULT: public/ 目錄尚未建立，TASK #001 依任務說明等待 claude 完成 TASK #003 / Next.js 初始化後再執行；未動 src/image/ 原始素材。
+
+[2026-05-26 16:57 by claude] public/vehicles/ 與 public/avatars/ 已建立，
+請重啟此任務：執行 cp 並在此 task 末尾追加新的 STATUS: DONE + RESULT。
+STATUS: PENDING (RESUMED)
+STATUS: DONE
+RESULT: 已建立/確認 public/vehicles/ 與 public/avatars/，並從 src/image/vehicles/、src/image/Avatar/ 複製素材（未搬移、未改動 src/image/ 原始檔）。public/vehicles/ 內容：cargo-van-base.png, cargo-van-mask.png, mpv-base.png, mpv-mask.png, pickup-truck-base.png, pickup-truck-mask.png, sedan-base.png, sedan-mask.png。public/avatars/ 內容：animal-01.png 至 animal-12.png、asian-01.png 至 asian-12.png、avatar-01.png 至 avatar-24.png、manifest.json。驗證：vehicles PNG=8、avatars PNG=48、manifest=yes、npx tsc --noEmit 通過。
+
+=== TASK #002 ===
+FROM: claude
+TO: codex
+TOPIC: 量測車輛 PNG 上的座位/後車廂座標
+PRIORITY: high
+CREATED: 2026-05-26
+SPEC: §2.2 (CAR_SPECS 結構)
+INTERFACE:
+  輸出檔案：docs/agents/seat-coordinates.json
+  格式：
+  {
+    "轎車": {
+      "driver": { "xPct": <整數 0-100>, "yPct": <整數 0-100> },
+      "seats": [
+        { "index": 0, "label": "副駕", "xPct": ..., "yPct": ... },
+        { "index": 1, "label": "後排-左", "xPct": ..., "yPct": ... },
+        ...
+      ],
+      "trunk": { "xPct": ..., "yPct": ..., "wPct": ..., "hPct": ... }
+    },
+    "MPV": { ... },
+    "貨車": { ... },
+    "皮卡": { ... }
+  }
+DEPENDENCIES:
+  - 來源圖：src/image/vehicles/{sedan,mpv,cargo-van,pickup-truck}-base.png
+  - 可寫 Python/Node 輔助腳本放 scripts/measure-seats.py
+ACCEPTANCE:
+  - [ ] docs/agents/seat-coordinates.json 存在且 JSON 格式正確
+  - [ ] 四種車型都有 driver / seats / trunk 三個欄位
+  - [ ] 座位數量符合規格：轎車=4、MPV=6、貨車=1、皮卡=1
+  - [ ] 所有 xPct/yPct/wPct/hPct 為 0~100 整數
+  - [ ] xPct 是水平百分比（0=左、100=右）
+  - [ ] yPct 是垂直百分比（0=上、100=下）
+---
+規格：
+
+每張車型需提供：
+- driver: 駕駛座中心點 { xPct, yPct }
+  - 駕駛座在所有車型都是「左上區域」（方向盤所在位置）
+- seats[]: 副駕 + 後座每個位子的中心點
+  - label 用中文：副駕 / 中排-左 / 中排-右 / 後排-左 / 後排-中 / 後排-右
+  - 轎車 seats: 副駕(0) + 後排-左(1) + 後排-中(2) + 後排-右(3)
+  - MPV seats: 副駕(0) + 中排-左(1) + 中排-右(2) + 後排-左(3) + 後排-中(4) + 後排-右(5)
+  - 貨車 seats: 副駕(0)
+  - 皮卡 seats: 副駕(0)
+- trunk: 後車廂矩形 { xPct, yPct, wPct, hPct }
+  - xPct/yPct 是矩形中心
+  - wPct/hPct 是矩形寬高百分比
+  - 貨車的 trunk 區域最大（HUGE CARGO SPACE）
+  - MPV 的 trunk 較小
+
+建議做法（不強制）：
+- 寫 scripts/measure-seats.py 用 PIL 讀 PNG
+- 你可以手動標註關鍵點，腳本算百分比
+- 或直接用圖工具看像素位置硬算
+
+注意：
+- 不必精準到小數第二位，整數即可
+- 大概對齊就好，claude 之後會在 UI 上微調
+- 座位中心點略偏向「人會坐進去」的位置（座椅靠背中心）
+---
+STATUS: PENDING
+STATUS: DONE
+RESULT: 已依 src/image/vehicles/{sedan,mpv,cargo-van,pickup-truck}-base.png 量測並建立 docs/agents/seat-coordinates.json；四種車型皆含 driver / seats / trunk，座位數量符合轎車=4、MPV=6、貨車=1、皮卡=1，所有百分比皆為 0~100 整數。
+
+== 任務排程說明 ==
+
+TASK #001 (素材搬移) 需要 claude 先完成 Next.js 初始化 (T0.1，內部編號 #003)，
+所以你可能在第一輪先做 TASK #002（量測座標）。
+
+當 claude 完成 #003 後，會在 shared-log.txt 寫進度，並在 claude-inbox.txt
+追加「[claude] T0.1 完成，public/ 已建，可進行 TASK #001」通知你。
+
+== 監聽指示 ==
+
+請持續輪詢此檔案。當你看到下面這一整行（claude 會在所有 phase 完成後寫入），就觸發停止流程：
+
+  >>> ALL_TASKS_COMPLETE_STOP_MONITORING <<<
+
+注意：必須是「>>> ALL_TASKS_COMPLETE_STOP_MONITORING <<<」這一整行才算終止信號，
+單純看到「ALL TASKS COMPLETE」、「STOP MONITORING」這類文字（例如本說明）不算。
+
+
+=== TASK #003 ===
+FROM: claude
+TO: codex
+TOPIC: 實作 src/components/shared/Avatar.tsx
+PRIORITY: high
+CREATED: 2026-05-26
+SPEC: design §3 模組劃分 / §2.5 範本資料 avatarId
+INTERFACE:
+  type Props = {
+    avatarId: string;
+    size?: number;       // 預設 40，單位 px
+    className?: string;  // 可額外覆蓋
+  };
+  export function Avatar(props: Props): JSX.Element;
+DEPENDENCIES:
+  - 用 src/lib/constants.ts 的 avatarSrc(avatarId) 與 FALLBACK_AVATAR_ID
+  - 用 clsx 組 className
+  - 圖片來源：public/avatars/{avatarId}.png（已搬移完畢）
+ACCEPTANCE:
+  - [ ] named export，函式元件
+  - [ ] avatarId 在 AVATAR_LIST 內 → 渲染 /avatars/{avatarId}.png
+  - [ ] avatarId 不在清單 → 自動 fallback 到 FALLBACK_AVATAR_ID（不報錯）
+  - [ ] 使用 Next.js Image 元件（next/image），src 用 avatarSrc()，width/height = size
+  - [ ] 預設 className 包含 rounded-full + object-cover + overflow-hidden
+  - [ ] 可被 props.className 覆蓋
+  - [ ] npx tsc --noEmit 通過
+---
+規格：
+
+用 next/image 渲染 PNG 頭像（不要用 <img>，避免 Lighthouse 扣分）：
+
+import Image from 'next/image';
+import { clsx } from 'clsx';
+import { AVATAR_LIST, FALLBACK_AVATAR_ID, avatarSrc } from '@/lib/constants';
+
+接受 avatarId 並做 fallback，size 預設 40（行內顯示用）。
+
+注意：
+- 不要直接寫 <img>，用 next/image
+- next/image 需要 width 和 height（用 size prop 同時設定）
+- 路徑用 avatarSrc() 取得，不要 hardcode
+- 全部用 named export
+- 不要寫 default export
+- 不寫 // TODO，遇到問題標 BLOCKED
+---
+STATUS: PENDING
+
+=== TASK #004 ===
+FROM: claude
+TO: codex
+TOPIC: 實作 src/components/canvas/DriverSeat.tsx
+PRIORITY: medium
+CREATED: 2026-05-26
+SPEC: design §4.3 駕駛防呆 / §3 模組劃分
+INTERFACE:
+  type Props = {
+    carId: string;
+    driverId: string | null;     // 已有駕駛則傳 id，否則 null
+    xPct: number;                 // 來自 CAR_SPECS[type].driverPos
+    yPct: number;
+  };
+  export function DriverSeat(props: Props): JSX.Element;
+DEPENDENCIES:
+  - useDroppable from '@dnd-kit/core'
+  - buildDndId from '@/lib/dnd-id'  → buildDndId({ kind: 'driver', carId })
+  - 但業務邏輯（canDrive 防呆）不在這層做，由 dragdrop action 處理
+ACCEPTANCE:
+  - [ ] named export
+  - [ ] 用 useDroppable，id = buildDndId({ kind: 'driver', carId })
+  - [ ] 容器 className 包含 absolute（要絕對定位疊在車身上）+ rounded-full
+  - [ ] style 用 left/top 百分比定位（不要寫 inline style 其他屬性，除了 left/top/transform）
+  - [ ] 圓圈用 -translate-x-1/2 + -translate-y-1/2 對齊中心點
+  - [ ] 容器大小：w-12 h-12（行動版可後續調）
+  - [ ] driverId 為 null 時：顯示淺灰邊框圓圈 + 一個 lucide Steering icon（gray-400）
+  - [ ] driverId 非 null 時：背景 amber-100（之後改 PassengerChip 嵌入），這版先放占位文字 "已坐"
+  - [ ] isOver === true 時：圈圈 border-2 border-blue-400 高亮（drop 預覽）
+  - [ ] npx tsc --noEmit 通過
+---
+注意：
+- 不要做 canDrive 驗證！那是 store 層 dragdrop action 的事
+- 圖示用 lucide-react 的 Steering（或 SteeringWheel；若無就用 Car icon）
+- 元件不接受 children；單純呈現+droppable
+
+範例骨架（你可調整）：
+
+import { useDroppable } from '@dnd-kit/core';
+import { Steering } from 'lucide-react';  // 若 lucide 沒有，改用 Car
+import { clsx } from 'clsx';
+import { buildDndId } from '@/lib/dnd-id';
+
+export function DriverSeat({ carId, driverId, xPct, yPct }: Props) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: buildDndId({ kind: 'driver', carId }),
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ left: `${xPct}%`, top: `${yPct}%` }}
+      className={clsx(
+        'absolute -translate-x-1/2 -translate-y-1/2',
+        'w-12 h-12 rounded-full flex items-center justify-center',
+        driverId ? 'bg-amber-100' : 'border-2 border-dashed border-slate-300',
+        isOver && 'ring-2 ring-blue-400',
+      )}
+    >
+      {driverId ? <span className="text-xs">已坐</span> : <Steering className="w-5 h-5 text-slate-400" />}
+    </div>
+  );
+}
+---
+STATUS: PENDING
+
+=== TASK #005 ===
+FROM: claude
+TO: codex
+TOPIC: 實作 src/components/canvas/SeatSlot.tsx
+PRIORITY: medium
+CREATED: 2026-05-26
+SPEC: design §4.4 座位衝突
+INTERFACE:
+  type Props = {
+    carId: string;
+    seatIndex: number;
+    passengerId: string | null;
+    xPct: number;
+    yPct: number;
+    label: string;        // '副駕' / '中排-左' 等，用於 aria-label
+  };
+  export function SeatSlot(props: Props): JSX.Element;
+DEPENDENCIES:
+  - useDroppable from '@dnd-kit/core'
+  - buildDndId → kind: 'seat'
+ACCEPTANCE:
+  - [ ] 同 TASK #004 的 droppable + 絕對定位 + 中心對齊
+  - [ ] 容器大小 w-10 h-10（座位比駕駛座小一點）
+  - [ ] passengerId 為 null：虛線淡灰圓圈占位
+  - [ ] passengerId 非 null：實心淺色圓圈 + 「坐」字（先占位，之後接 PassengerChip）
+  - [ ] isOver：ring-2 ring-blue-400
+  - [ ] aria-label 包含 label
+  - [ ] tsc 通過
+---
+STATUS: PENDING
+
+=== TASK #006 ===
+FROM: claude
+TO: codex
+TOPIC: 實作 src/components/canvas/Trunk.tsx
+PRIORITY: medium
+CREATED: 2026-05-26
+SPEC: design §4.5 後車廂
+INTERFACE:
+  type Props = {
+    carId: string;
+    itemIds: string[];       // 不在此元件 render 物品內容，僅顯示數量
+    xPct: number;
+    yPct: number;
+    wPct: number;
+    hPct: number;
+  };
+  export function Trunk(props: Props): JSX.Element;
+DEPENDENCIES:
+  - useDroppable from '@dnd-kit/core'
+  - buildDndId → kind: 'trunk'
+  - lucide Package icon
+ACCEPTANCE:
+  - [ ] 絕對定位，用 left/top/width/height (% 4 種百分比)
+  - [ ] -translate-x-1/2 -translate-y-1/2 對齊中心
+  - [ ] 容器：圓角矩形（rounded-xl）、半透明背景（bg-slate-200/60）、border-dashed border-slate-300
+  - [ ] 內部顯示 Package icon + 物品數量徽章（itemIds.length，若 > 0）
+  - [ ] isOver：ring-2 ring-blue-400 高亮
+  - [ ] tsc 通過
+---
+注意：
+- 不渲染物品本身，那是 StagingPanel / 之後另一個元件做的
+- 大小由父層傳 wPct/hPct 決定，不要 hardcode 寬高
+---
+STATUS: PENDING

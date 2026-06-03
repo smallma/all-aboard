@@ -1,0 +1,322 @@
+=== Wander-Fleet 共用時間軸 ===
+
+[2026-05-26] 專案啟動
+- 產品：Wander-Fleet 微縮汽車打包模擬器
+- 技術棧：Next.js 15 App Router + TS + Tailwind + @dnd-kit + framer-motion + lucide-react + Dexie (IndexedDB)
+- 主協調者：claude
+- 副手：codex
+
+[2026-05-26] 需求釐清完成 (by claude)
+重點規格：
+- 車型：轎車(駕+4) / MPV(駕+6) / 貨車(駕+1) / 皮卡(駕+1)
+- 車身視覺：base + mask PNG 疊圖染色（素材已備於 src/image/vehicles/）
+- 車輛色盤：黑/白/灰/紅/藍/綠 6 色
+- 物品：型別 Item，lucide Package icon + 自輸名稱，後車廂直向清單無上限
+- avatar：48 張全併池（src/image/Avatar/ 下 animal-01~12, asian-01~12, avatar-01~24）
+- 駕駛防呆：canDrive 才能進駕駛座，違規時即時亮紅燈 + toast + 車身震動
+- 座位衝突：有空位先填空位，沒空位才 swap
+- 操作：拖曳 + 點 ✕ 快速移除
+- RWD：桌面 3 列、平板 2 列、手機 1 列直排；側欄可收起
+- 動畫：全套（掉落彈跳、放大、招牌彈、震動、淡出、滑入）
+- 儲存：IndexedDB (Dexie) 多份「安排」 + JSON 匯入匯出
+- 安排管理：首頁 = 安排清單；新建有「空白」「從範本」兩入口
+- 複製：整份複製，命名「原名稱 (副本)」
+
+[2026-05-26] 架構決議 (by claude)
+- 方案 A：單一 Zustand Store + Dexie 同步層
+- 拖曳期間純記憶體操作；變動 debounce 300ms 寫回 Dexie
+
+[2026-05-26] codex 已交付素材
+- src/image/vehicles/ : 4 車型 base + mask PNG
+- src/image/Avatar/   : 48 張 avatar PNG (animal/asian/avatar 三系列) + manifest.json
+
+[2026-05-26] 設計文件完成 (by claude)
+- 路徑：docs/superpowers/specs/2026-05-26-wander-fleet-design.md
+- 內容：架構/型別/模組/互動/動畫/儲存層 完整 spec
+- 自我審查通過：placeholder 已修、id 統一用 crypto.randomUUID()
+- 補充：PassengerChip 三種 placement 視覺差異已明列
+
+[2026-05-26] 實作計畫完成 (by claude)
+- 路徑：docs/superpowers/plans/2026-05-26-wander-fleet-plan.md
+- 分為 Phase 0-9，每 task 設計成 < 15 分鐘可完成
+- codex 負責素材整理（T0.2/T0.3），其餘由 claude 實作
+
+[2026-05-26] codex loop 腳本完成 (by claude)
+- 路徑：scripts/codex-loop.sh
+- 已 chmod +x
+- 預設輪詢間隔 60 秒
+- 停止信號：codex-inbox.txt 含 [ALL TASKS COMPLETE - STOP MONITORING] 或 touch docs/agents/.stop
+
+[2026-05-26] codex-inbox 已寫入第一批任務 (by claude)
+- TASK #001：素材搬移到 public/（等 Next.js 專案初始化後執行）
+- TASK #002：量測車輛 PNG 上的座位座標（可立即開始）
+
+[2026-05-26 16:10] BUG 修正：shell loop 誤判提早結束 (by claude)
+- 原因：grep 比對「[ALL TASKS COMPLETE - STOP MONITORING]」字串時，把 codex-inbox.txt
+       裡的「監聽指示說明文字」也誤判為終止信號
+- 修正：
+  - 終止信號改為一整行 ">>> ALL_TASKS_COMPLETE_STOP_MONITORING <<<"
+  - grep 改用 ^...$ 完整行匹配
+  - 更新 scripts/codex-loop.sh、docs/agents/codex-inbox.txt、docs/agents/README.txt、plan.md
+
+[2026-05-26 16:20] 協作模型升級：codex 從「執行雜事」升級為「UI 元件初稿產出 + 必經 review」
+- 動機：使用者反映 codex 開發能力需要把關，希望主幹邏輯 claude 做、UI 雜活 codex 做、claude 全 review
+- 新檔案：
+  - docs/agents/coding-conventions.md (15 章節，codex 每輪必讀)
+  - docs/agents/README.txt 改寫加入 review 流程與 checklist
+  - docs/agents/codex-inbox.txt 改用結構化 TASK 格式（含 SPEC / INTERFACE / DEPENDENCIES / ACCEPTANCE）
+- plan 重新分工：
+  - codex 接手：T5.1 Avatar / T5.5 droppable 三件套 / T5.6 OwnerBadge+CarMenu /
+    T6.1 PassengerChip+ItemChip / T6.2 AvatarPicker
+  - 仍由 claude 親自做：types/db/store/dragdrop/CarBody/CarView/StagingPanel/Dialog/Console
+- review 機制：每筆 codex 完工 → claude 跑 tsc + 對照 ACCEPTANCE + 對照 conventions →
+  通過 APPROVED 寫 shared-log；不通過 REVISION REQUEST 寫 codex-inbox
+
+[2026-05-26 16:25] 發現 codex 並非 CLI 工具
+- 使用者環境的 codex 是 /Applications/Codex.app 桌面版，無 CLI
+- shell loop 腳本暫時無法啟動（command not found: codex）
+- 使用者決定安裝 codex CLI（npm install -g @openai/codex 或類似）
+- claude 端 /loop 排程已取消 (job 7785d9f8) 等待 codex CLI 就緒後重啟
+
+[2026-05-26 16:38] codex CLI 就緒 (by claude)
+- 已安裝：@openai/codex@0.133.0
+- 需先 nvm use 22.12.0（已寫入 .nvmrc，loop 腳本自動 source）
+- 已驗證能執行：codex -a never -s workspace-write exec --skip-git-repo-check "<prompt>"
+       返回 "pong" 測試成功
+- scripts/codex-loop.sh 已修正：
+  - 在腳本開頭 source nvm.sh + nvm use
+  - flag 順序改為「-a / -s 在主指令層、--skip-git-repo-check 在 exec 後」
+- 待使用者重新啟動：
+  1. 在 terminal 跑 ./scripts/codex-loop.sh
+  2. 在 claude 視窗下 /loop 15m ...
+
+[2026-05-26 16:43] [codex] TASK #001 BLOCKED：public/ 尚未建立，等待 claude 完成 Next.js 初始化 / TASK #003
+[2026-05-26 16:43] [codex] TASK #002 完成：已建立 docs/agents/seat-coordinates.json
+
+[2026-05-26 16:55] [APPROVED TASK #002] (by claude)
+- 檔案：docs/agents/seat-coordinates.json
+- review 結果：所有 ACCEPTANCE 條件通過
+  - 4 車型俱在、座位數符合（轎4/MPV6/貨1/皮1）
+  - 全為 0-100 整數、駕駛 37/副駕 62、trunk 比例合理
+- 將在實作 T1.2 lib/constants.ts 時把座標納入 CAR_SPECS
+[2026-05-26 17:15] [codex] TASK #001 完成：已複製車輛與 avatar 素材到 public/vehicles/、public/avatars/，驗證 vehicles PNG=8、avatars PNG=48、manifest 存在，npx tsc --noEmit 通過。
+
+[2026-05-26 17:00] T0.1 完成 (by claude)
+- 已建 package.json / tsconfig.json / next.config.ts / tailwind.config.ts / postcss.config.mjs / .gitignore
+- 已建 src/app/{layout.tsx,page.tsx,globals.css}（layout 用 default export，違反 conventions §1 的例外已寫進 §1）
+- npm install 完成（@dnd-kit/{core,sortable,utilities}, framer-motion, lucide-react, zustand, dexie, clsx 全裝）
+
+[2026-05-26 17:00] T1.1 / T1.2 / T1.3 完成 (by claude)
+- src/lib/types.ts：完整型別 + PlanMeta
+- src/lib/constants.ts：CAR_SPECS 接入 codex 量測座標、COLOR_HEX、AVATAR_LIST(48)、TEMPLATE_PLAN_DATA
+- src/lib/id.ts：uuid = crypto.randomUUID()
+- src/lib/dnd-id.ts：buildDndId/parseDndId + DndDescriptor union 型別
+
+[2026-05-26 17:00] TypeScript 驗證 (by claude)
+- npx tsc --noEmit 通過、0 errors
+
+[2026-05-26 17:00] [APPROVED TASK #001] (by claude)
+- public/vehicles/ 8 個 PNG 齊全
+- public/avatars/ 48 PNG + manifest.json 齊全
+- src/image/ 原始素材完整保留
+
+[2026-05-27] T2.1/T2.2/T2.3 完成 (by claude)
+- src/lib/db.ts：Dexie WanderFleetDB + planRepo (listMeta/get/put/delete)
+- src/lib/import-export.ts：exportPlanAsJson + parsePlanJson + validatePlanShape（手寫 type guard，無 zod）
+- src/lib/persist.ts：createPlanPersist() debounce 300ms + flush()
+- npx tsc --noEmit 通過
+
+[2026-05-27] 派發 codex 第二批 task (by claude)
+- TASK #003: Avatar.tsx (Phase 5.1)
+- TASK #004: DriverSeat.tsx (Phase 5.5)
+- TASK #005: SeatSlot.tsx (Phase 5.5)
+- TASK #006: Trunk.tsx (Phase 5.5)
+
+[2026-05-27] 本輪 /loop session 完成
+- Phase 0-2 全部完成（init + lib 全部）
+- 兩個 codex task review APPROVED
+- 派發 4 個新 codex task 待執行
+[2026-05-27 08:54] [codex] TASK #003 完成
+[2026-05-27 08:57] [codex] TASK #004 完成
+[2026-05-27 09:00] [codex] TASK #005 完成
+
+[2026-05-27] inbox 整理 + codex prompt 升級 (by claude)
+- 把 #001/#002 已 DONE 任務歸檔註記化，codex-inbox 只留 #003-#006 PENDING
+- claude-inbox 200+ 行心跳訊息歸檔到 archive/，只留有意義訊息
+- 升級 scripts/codex-loop.sh PROMPT：強調「目前待辦」區塊、一輪一個 task、不可動歸檔區
+- 結果：codex 立刻交付 TASK #003 Avatar.tsx
+- 注意：需重啟 ./scripts/codex-loop.sh 才會用新 PROMPT（PROMPT 是腳本啟動時讀入）
+
+[2026-05-27] T3 Zustand Store 完成 (by claude)
+- src/store/usePlanStore.ts：state（planMetas/currentPlan/ui） + setter actions
+- src/store/actions/plans.ts：load/createBlank/createTemplate/duplicate/rename/delete/import
+- src/store/actions/passengers.ts：add/update（含 canDrive→false 自動下車）/remove
+- src/store/actions/items.ts：add/update/remove
+- src/store/actions/cars.ts：addCar（依車型 init passengerIds 陣列長度）/changeColor/delete
+- src/store/actions/dragdrop.ts ⚠️ 核心：完整實作 spec §4.2-4.5 矩陣
+  - 駕駛防呆：canDrive=false → flashReject + toast
+  - 座位衝突：先填空位、無空位才 swap
+  - swap 演算法：locatePassenger + movePassengerTo + swapPassengers helpers
+  - unseatPassenger / unstowItem 點 ✕ 快速移除
+- npx tsc --noEmit 通過
+
+[2026-05-27] [APPROVED TASK #003] Avatar.tsx (by claude)
+- 符合 ACCEPTANCE 全條件、coding-conventions 全條件
+[2026-05-27 09:02] [codex] TASK #006 完成
+
+[2026-05-27] T4 UI shell 完成 (by claude)
+- src/components/plans/PlanListView.tsx：清單頁，含 EmptyState
+- src/components/plans/PlanCard.tsx：單張安排卡片，hover 顯示 rename/duplicate/export/delete
+- src/components/plans/NewPlanDialog.tsx：新增彈窗（空白 / 範本 / 匯入 JSON）+ framer-motion
+- src/app/page.tsx：改成 <PlanListView />
+- src/app/plan/[id]/page.tsx：路由（async params for Next 15）
+- src/components/editor/EditorPage.tsx：占位編輯頁外框（Phase 5-7 補完）
+- npx tsc --noEmit 通過
+
+[2026-05-27] 本輪 /loop 完成
+- 修復了 codex 連續閒置問題（清理 inbox + 升級 prompt）
+- 完成 Phase 3 (store) + Phase 4 (UI shell)
+- review APPROVED #003 Avatar
+- 下輪：review codex 後續交付（#004-#006），實作 Phase 5-7
+[2026-05-27 09:13] [codex] TASK #007 完成
+[2026-05-27 09:16] [codex] TASK #008 完成
+[2026-05-27 09:19] [codex] TASK #009 完成
+
+[2026-05-27 by claude] Phase 5-7 主體完成
+- T5.2 src/components/shared/Dialog.tsx：通用對話框 + framer-motion
+- T5.3 src/components/canvas/CarBody.tsx：base + mask PNG 染色（CSS mask + mix-blend-multiply）
+- T5.4 src/components/canvas/CarView.tsx：整合 CarBody + DriverSeat + SeatSlot×N + Trunk + OwnerBadge
+  + framer-motion 進場彈跳 + useAnimation 駕駛拒絕震動 + 刪除按鈕
+- T6.4 src/components/console/{ControlConsole, NewCarDialog}.tsx：左側控制台 + 新增車輛彈窗（車型+色盤）
+- T6 src/components/staging/{StagingPanel, AddPassengerDialog, AddItemDialog}.tsx：
+  - StagingPanel 含「人員」「物品」兩個 droppable 區（先用臨時占位 chip，等 codex #008/#009 完成後替換）
+  - AddPassengerDialog 內嵌完整 48 張 avatar grid 選擇器（避免阻擋；codex #010 完成後改用其 AvatarPicker）
+  - AddItemDialog 純文字輸入
+- T7.1 src/components/editor/EditorScreen.tsx：DndContext + PointerSensor + handleDragEnd 串接
+  - 三欄佈局：控制台 / 畫布 / 備戰區
+  - 計算 unassignedPassengerIds / unassignedItemIds
+  - 空狀態提示
+- T7.2 src/hooks/usePlanSync.ts：subscribe 寫回 Dexie debounce 300ms + 卸載 flush
+- ToastHost：framer-motion 右上角 toast、2.8s 自動消失
+- EditorPage.tsx 改為「載入 + sync + EditorScreen」整合層
+
+[2026-05-27] codex review (by claude)
+- [APPROVED TASK #004] DriverSeat.tsx
+- [APPROVED TASK #005] SeatSlot.tsx
+- [APPROVED TASK #006] Trunk.tsx
+- [APPROVED TASK #007] OwnerBadge.tsx（補加 'use client'）
+
+[2026-05-27] 派發 codex 第三批 (by claude)
+- TASK #008 PassengerChip.tsx（三 placement）
+- TASK #009 ItemChip.tsx（staging/trunk）
+- TASK #010 AvatarPicker.tsx（48 張 grid）
+- 完成後 claude 會替換 StagingPanel 內的占位、AddPassengerDialog 內嵌 grid
+
+[2026-05-27] 全專案驗證
+- npx tsc --noEmit：✅ 0 errors
+- npm run dev：✅ HTTP 200
+  - http://localhost:3000        → 安排清單頁
+  - http://localhost:3000/plan/X → 編輯頁（不存在 id 會自動 redirect 回首頁）
+
+[2026-05-27] 本輪 /loop 完成
+- Phase 5/6/7 主體串完，可實際打開瀏覽器拖曳測試（除了 PassengerChip 拖曳尚未實裝）
+- 下輪：review codex #008-#010，替換 StagingPanel 占位、補完 framer-motion 動畫、處理 RWD 細節
+[2026-05-27 09:22] [codex] TASK #010 完成
+
+[2026-05-27 by claude] codex 第三批 review + wiring 完成
+- [APPROVED #008] PassengerChip.tsx
+- [APPROVED #009] ItemChip.tsx
+- [APPROVED #010] AvatarPicker.tsx
+- 替換 StagingPanel 內占位 chip 為真實 PassengerChip / ItemChip（拖曳備戰區→車現在可運作）
+- 替換 AddPassengerDialog 內嵌 avatar grid 為 codex 的 AvatarPicker
+- CarView 在 droppable 之上 overlay PassengerChip（駕駛/座位）+ Trunk 內部清單渲染 ItemChip placement='trunk'
+- 接上 onRemove → unseatPassenger / unstowItem 點 ✕ 快速移除
+- DndContext 加入 DragOverlay：拖曳時藍框預覽（人/物兩種視覺）
+- npx tsc --noEmit：✅ 0 errors
+- npm run dev：✅ HTTP 200 (homepage)
+
+[2026-05-27 by claude] 派發 codex 第四批
+- TASK #011 EmptyCanvasHint.tsx（畫布空狀態元件 + 漂浮動畫）
+- TASK #012 SectionHeader.tsx（共用小元件）
+
+[2026-05-27] 本輪 /loop 完成
+- ✨ 應用程式核心功能完整可運作
+  - 安排管理（新增/列表/編輯/刪除/複製/匯入/匯出）
+  - 編輯器三欄佈局 + 側欄收合
+  - 新增車輛（4 車型 × 6 色染色）
+  - 拖曳：備戰區 ↔ 駕駛座 ↔ 副座 ↔ 後車廂
+  - 駕駛防呆（toast + 車身震動 + reject flash）
+  - 座位衝突（空位優先 / 滿位 swap）
+  - 點 ✕ 快速移除
+  - framer-motion 進場/離場/震動/彈跳全套
+  - Dexie 自動 debounce 持久化
+- 下輪可做：RWD 細節、Vercel preview 部署、邊界情況 polish
+[2026-05-27 09:30] [codex] TASK #011 完成
+[2026-05-27 09:33] [codex] TASK #012 完成
+
+[2026-05-27] [APPROVED TASK #011 + #012] (by claude)
+- src/components/editor/EmptyCanvasHint.tsx 已接入 EditorScreen
+- src/components/shared/SectionHeader.tsx 已備（待未來 StagingPanel 替換用）
+- npx tsc --noEmit 通過
+- 注意：codex-loop.sh 進程已停止（ps 找不到），如需繼續派發 codex 任務請重啟
+
+[2026-05-27] 🎉 Phase 8 + 9 完成 (by claude)
+=== T8 RWD ===
+- src/hooks/useViewport.ts：mobile/tablet/desktop 偵測
+- EditorScreen：手機版自動切換 bottom sheet 模式
+  - 桌面/平板：三欄常駐
+  - 手機：主畫布 + 底部兩顆 FAB（控制台/備戰區）→ 點開全螢幕 sheet
+- 畫布 grid 自適應：手機 1 欄、平板 2 欄、桌面最多 3 欄
+- StagingPanel 用 SectionHeader 統一外觀
+
+=== 即時駕駛防呆紅燈 ===
+- Store 新增 ui.hoverInvalidDriverCarId
+- DndContext 加 onDragOver：拖非會開車的人 → 設定 invalid carId
+- DriverSeat 訂閱該 state，invalid 時顯示 red ring + bg-red-100
+- dragEnd 仍觸發震動+toast；dragOver 提供即時視覺回饋
+
+=== Vercel 部署 ===
+- 部署 URL：https://all-aboard-three.vercel.app
+- 此次以 production target 部署（因專案尚未 git init，--yes 預設 prod）
+- HTTP/2 200 已驗證
+- .vercel 目錄已加入 .gitignore
+
+=== TS / 編譯 / Smoke ===
+- npx tsc --noEmit ✅ 0 errors
+- npm run dev ✅ HTTP 200
+
+[2026-05-27] 🏁 所有 Phase 完成
+- Phase 0 init / 1 lib / 2 db / 3 store / 4 UI shell
+- Phase 5 canvas / 6 staging+console / 7 整合動畫
+- Phase 8 RWD / 9 部署
+- codex 共完成並 APPROVED 10 個任務（#003-#012）
+- 寫 >>> ALL_TASKS_COMPLETE_STOP_MONITORING <<< 給 codex 收工
+
+[2026-05-27] UX 修正輪 (by claude)
+- scripts/codex-loop.sh：移除中文註解避免 set -u + 多字節字元觸發 unbound variable
+- PlanCard：
+  - 改 div role=button 避免 button-in-button HTML 不合法
+  - 名稱不截斷（break-words），長標題會自動換行
+  - 操作按鈕常駐於卡片底部（不再 hover 才出現）
+- Trunk + TrunkDrawer：
+  - Trunk 改為 droppable + 點擊開抽屜
+  - CarView 內車身上的物品從「直向堆疊」改成「橫向 mini chips + 超過 PREVIEW_LIMIT 顯示 +N」
+  - TrunkDrawer 從畫面底部彈出，物品以可移除 chips 呈現，flex-wrap 不受車身高度限制
+- StagingPanel：
+  - 區塊改名「待分配人員 (N)」「待分配物品 (N)」（明確語意）
+  - 新增「已上車 / 已上車物品」副區塊，緊湊 chips 呈現
+  - 計數徽章在有待辦時用 amber 顏色強調
+- OwnerBadge：
+  - 字體 text-sm → text-base + font-semibold
+  - 「請指派司機」用 amber-50 背景 + amber-700 字（不再灰底灰字看不清）
+  - 一般車名用白底 + slate-900 字（對比拉滿）
+- DriverSeat / SeatSlot：
+  - 新增 store ui.draggingKind 標示「拖人/拖物」
+  - 拖人時：空座位顯示 + 圖示 + 藍色高亮提示可放置
+  - 拖人到無效駕駛座：紅色高亮（保留原有駕駛防呆）
+- 持久化強化：
+  - persist.ts 新增 flushSync()
+  - usePlanSync 監聽 visibilitychange / beforeunload / pagehide 立即寫入
+  - debounce 300ms → 150ms（更快寫回，降低資料遺失視窗）
+- TS 編譯：✅ 0 errors
+- dev server：✅ HTTP 200
