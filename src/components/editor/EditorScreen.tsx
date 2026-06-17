@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -12,12 +13,15 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Package, PanelRight, Plus, X } from 'lucide-react';
+import { Clipboard, ImageDown, Package, PanelRight, Plus, WandSparkles, X } from 'lucide-react';
 import { clsx } from 'clsx';
+import { toPng } from 'html-to-image';
 import { parseDndId } from '@/lib/dnd-id';
+import { buildLineReport } from '@/lib/plan-tools';
 import { handleDragEnd } from '@/store/actions/dragdrop';
+import { autoFillCurrentPlan } from '@/store/actions/autofill';
 import { usePlanStore } from '@/store/usePlanStore';
-import type { Item, Passenger, Plan } from '@/lib/types';
+import type { Car, Item, Passenger, Plan } from '@/lib/types';
 import { useViewport } from '@/hooks/useViewport';
 import { Avatar } from '../shared/Avatar';
 import { CarView } from '../canvas/CarView';
@@ -28,6 +32,7 @@ import { EmptyCanvasHint } from './EmptyCanvasHint';
 import { TextOverview } from './TextOverview';
 import { ToastHost } from './ToastHost';
 import { NewCarDialog } from '../console/NewCarDialog';
+import { WaypointsDialog } from '../console/WaypointsDialog';
 
 type Props = {
   plan: Plan;
@@ -44,6 +49,7 @@ export function EditorScreen({ plan }: Props) {
   const viewport = useViewport();
   const isMobile = viewport === 'mobile';
   const viewMode = usePlanStore((s) => s.ui.viewMode);
+  const pushToast = usePlanStore((s) => s.pushToast);
 
   const [editingPassenger, setEditingPassenger] = useState<Passenger | null>(null);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
@@ -52,9 +58,12 @@ export function EditorScreen({ plan }: Props) {
   const [carDialogOpen, setCarDialogOpen] = useState(false);
   const [dragSource, setDragSource] = useState<DragSource>(null);
   const [mobileSheet, setMobileSheet] = useState<MobileSheet>(null);
+  const [waypointsCar, setWaypointsCar] = useState<Car | null>(null);
+  const exportRef = useRef<HTMLDivElement | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } }),
   );
 
   const onStart = (event: DragStartEvent) => {
@@ -125,6 +134,37 @@ export function EditorScreen({ plan }: Props) {
     'grid-cols-1 min-[731px]:grid-cols-2 min-[1280px]:grid-cols-3',
   );
 
+  const copyLineReport = async () => {
+    const text = buildLineReport(plan);
+    try {
+      await navigator.clipboard.writeText(text);
+      pushToast('已複製 LINE 報數文');
+    } catch {
+      pushToast('剪貼簿權限被瀏覽器擋下');
+    }
+  };
+
+  const exportImage = async () => {
+    if (!exportRef.current) {
+      pushToast('請切到視覺模式再匯出圖片');
+      return;
+    }
+    try {
+      const dataUrl = await toPng(exportRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: '#f8fafc',
+      });
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `${sanitizeFilename(plan.name)}-出發安排.png`;
+      a.click();
+      pushToast('已產生 PNG 圖片');
+    } catch {
+      pushToast('圖片產生失敗，請稍後再試');
+    }
+  };
+
   const stagingPanel = (
     <StagingPanel
       passengers={plan.passengers}
@@ -158,6 +198,26 @@ export function EditorScreen({ plan }: Props) {
     <DndContext sensors={sensors} onDragStart={onStart} onDragOver={onOver} onDragEnd={onEnd}>
       <div className="flex-1 flex overflow-hidden relative">
         <section className="flex-1 overflow-auto bg-slate-50">
+          <div className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-4 py-2 backdrop-blur">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <ToolButton
+                label="複製清單"
+                icon={<Clipboard className="h-4 w-4" />}
+                onClick={copyLineReport}
+              />
+              <ToolButton
+                label="匯出圖片"
+                icon={<ImageDown className="h-4 w-4" />}
+                onClick={exportImage}
+              />
+              <ToolButton
+                label="魔法分配"
+                icon={<WandSparkles className="h-4 w-4" />}
+                onClick={autoFillCurrentPlan}
+                accent
+              />
+            </div>
+          </div>
           {viewMode === 'visual' ? (
             <div className="p-6">
               <div className="mb-4 flex justify-end">
@@ -175,7 +235,7 @@ export function EditorScreen({ plan }: Props) {
                   <EmptyCanvasHint onAddCarHint={() => setCarDialogOpen(true)} />
                 </div>
               ) : (
-                <div className={canvasGridClass}>
+                <div ref={exportRef} className={clsx(canvasGridClass, 'rounded-xl bg-slate-50 p-1')}>
                   <AnimatePresence>
                     {plan.cars.map((car) => (
                       <CarView
@@ -183,6 +243,7 @@ export function EditorScreen({ plan }: Props) {
                         car={car}
                         plan={plan}
                         onAddCar={() => setCarDialogOpen(true)}
+                        onEditWaypoints={() => setWaypointsCar(car)}
                       />
                     ))}
                   </AnimatePresence>
@@ -190,7 +251,7 @@ export function EditorScreen({ plan }: Props) {
               )}
             </div>
           ) : (
-            <TextOverview plan={plan} />
+            <TextOverview plan={plan} onEditWaypoints={setWaypointsCar} />
           )}
         </section>
 
@@ -275,8 +336,42 @@ export function EditorScreen({ plan }: Props) {
         editing={editingItem}
       />
       <NewCarDialog open={carDialogOpen} onClose={() => setCarDialogOpen(false)} />
+      <WaypointsDialog
+        open={waypointsCar !== null}
+        car={waypointsCar}
+        plan={plan}
+        onClose={() => setWaypointsCar(null)}
+      />
       <ToastHost />
     </DndContext>
+  );
+}
+
+function ToolButton({
+  label,
+  icon,
+  onClick,
+  accent,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  accent?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={clsx(
+        'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium shadow-sm transition',
+        accent
+          ? 'bg-violet-600 text-white hover:bg-violet-700'
+          : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+      )}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
   );
 }
 
@@ -311,4 +406,8 @@ function FabButton({
       )}
     </button>
   );
+}
+
+function sanitizeFilename(name: string): string {
+  return name.trim().replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').slice(0, 80) || '出發安排';
 }

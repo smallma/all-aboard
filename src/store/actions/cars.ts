@@ -1,6 +1,7 @@
 import { CAR_SPECS } from '@/lib/constants';
 import { uuid } from '@/lib/id';
-import type { Car, CarColor, CarType, Plan } from '@/lib/types';
+import type { Car, CarColor, CarType, Plan, Waypoint } from '@/lib/types';
+import { waypointLabel } from '@/lib/plan-normalize';
 import { usePlanStore } from '../usePlanStore';
 
 function update(updater: (plan: Plan) => Plan): void {
@@ -17,6 +18,7 @@ export function addCar(type: CarType, color: CarColor): string {
     driverId: null,
     passengerIds: new Array<string | null>(spec.seatCount).fill(null),
     itemIds: [],
+    waypoints: [],
   };
   update((plan) => ({ ...plan, cars: [...plan.cars, car] }));
   return id;
@@ -35,5 +37,17 @@ export function deleteCar(carId: string): void {
   update((plan) => ({
     ...plan,
     cars: plan.cars.filter((c) => c.id !== carId),
+  }));
+}
+
+export function updateCarWaypoints(carId: string, locations: string[]): void {
+  const waypoints: Waypoint[] = locations
+    .map((location, index) => ({ id: uuid(), label: waypointLabel(index), location: location.trim() }))
+    .filter((waypoint) => waypoint.location)
+    .slice(0, 3);
+
+  update((plan) => ({
+    ...plan,
+    cars: plan.cars.map((c) => (c.id === carId ? { ...c, waypoints } : c)),
   }));
 }

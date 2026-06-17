@@ -1,4 +1,5 @@
 import type { Car, CarColor, CarType, Item, Passenger, Plan } from './types';
+import { waypointLabel } from './plan-normalize';
 
 const CAR_TYPES: readonly CarType[] = ['轎車', 'MPV', '貨車', '皮卡'];
 const CAR_COLORS: readonly CarColor[] = ['黑', '白', '灰', '紅', '藍', '綠'];
@@ -112,8 +113,35 @@ function parseCars(value: unknown): Car[] {
         v === null || typeof v === 'string' ? v : null,
       ),
       itemIds: c.itemIds.filter((v): v is string => typeof v === 'string'),
+      waypoints: parseWaypoints(c.waypoints, i),
     };
   });
+}
+
+function parseWaypoints(value: unknown, carIndex: number): Car['waypoints'] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) {
+    throw new Error(`cars[${carIndex}].waypoints 必須為陣列`);
+  }
+  return value
+    .map((waypoint, i) => {
+      if (!isRecord(waypoint)) throw new Error(`cars[${carIndex}].waypoints[${i}] 非物件`);
+      if (typeof waypoint.location !== 'string') {
+        throw new Error(`cars[${carIndex}].waypoints[${i}].location 非字串`);
+      }
+      const location = waypoint.location.trim();
+      if (!location) return null;
+      return {
+        id: typeof waypoint.id === 'string' && waypoint.id ? waypoint.id : `wp-${i + 1}`,
+        label:
+          typeof waypoint.label === 'string' && waypoint.label
+            ? waypoint.label
+            : waypointLabel(i),
+        location,
+      };
+    })
+    .filter((waypoint): waypoint is Car['waypoints'][number] => Boolean(waypoint))
+    .slice(0, 3);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

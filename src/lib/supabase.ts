@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Plan } from './types';
+import { normalizePlan } from './plan-normalize';
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -46,7 +47,7 @@ export function getSupabase(): SupabaseClient<Database> {
 }
 
 export function planRowToPlan(row: PlanRow): Plan {
-  return {
+  return normalizePlan({
     id: row.id,
     name: row.name,
     createdAt: new Date(row.created_at).getTime(),
@@ -54,7 +55,7 @@ export function planRowToPlan(row: PlanRow): Plan {
     passengers: row.passengers ?? [],
     items: row.items ?? [],
     cars: row.cars ?? [],
-  };
+  });
 }
 
 export function planToRowInsert(plan: Plan): Database['public']['Tables']['plans']['Insert'] {

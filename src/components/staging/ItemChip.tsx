@@ -34,8 +34,8 @@ export function ItemChip({ item, placement, onRemove, showOwnerName = false }: P
   // Only apply transform in staging; trunk items use DragOverlay for positioning.
   const style: CSSProperties =
     placement === 'staging'
-      ? { transform: CSS.Translate.toString(transform) }
-      : {};
+      ? { transform: CSS.Translate.toString(transform), touchAction: 'none' }
+      : { touchAction: 'none' };
 
   function handleRemove(event: MouseEvent<HTMLButtonElement>): void {
     event.stopPropagation();
@@ -48,7 +48,7 @@ export function ItemChip({ item, placement, onRemove, showOwnerName = false }: P
         ref={setNodeRef}
         style={style}
         className={clsx(
-          'relative inline-flex items-center bg-white border border-slate-200 rounded-md px-2 py-1 gap-2',
+          'relative inline-flex touch-none select-none items-center bg-white border border-slate-200 rounded-md px-2 py-1 gap-2',
           isDragging && 'opacity-50',
         )}
         {...listeners}
@@ -78,7 +78,7 @@ export function ItemChip({ item, placement, onRemove, showOwnerName = false }: P
       ref={setNodeRef}
       style={style}
       className={clsx(
-        'relative w-full bg-white border border-slate-200 rounded-md px-2 py-1.5 flex gap-2 items-center',
+        'relative flex touch-none select-none w-full bg-white border border-slate-200 rounded-md px-2 py-1.5 gap-2 items-center',
         isDragging && 'opacity-50',
       )}
       {...listeners}

@@ -36,6 +36,9 @@ export function usePlanSync(): void {
           void loadPlanMetas();
           return;
         }
+        if (state.currentPlan && incoming.updatedAt <= state.currentPlan.updatedAt) {
+          return;
+        }
         // echo 過濾：如果 incoming.updatedAt 跟我剛寫的相符（±200ms），略過
         const last = persist.lastSavedAt();
         if (Math.abs(incoming.updatedAt - last) < 200) return;

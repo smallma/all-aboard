@@ -15,6 +15,12 @@ export type CarType = '轎車' | 'MPV' | '貨車' | '皮卡';
 
 export type CarColor = '黑' | '白' | '灰' | '紅' | '藍' | '綠';
 
+export type Waypoint = {
+  id: string;
+  label: string;
+  location: string;
+};
+
 export type Car = {
   id: string;
   type: CarType;
@@ -22,6 +28,7 @@ export type Car = {
   driverId: string | null;
   passengerIds: (string | null)[];
   itemIds: string[];
+  waypoints: Waypoint[];
 };
 
 export type Plan = {

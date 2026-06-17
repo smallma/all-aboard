@@ -2,6 +2,7 @@ import { cloudPlanRepo } from '@/lib/cloud-db';
 import { TEMPLATE_PLAN_DATA } from '@/lib/constants';
 import { uuid } from '@/lib/id';
 import { parsePlanJson } from '@/lib/import-export';
+import { normalizePlan } from '@/lib/plan-normalize';
 import type { Plan } from '@/lib/types';
 import { usePlanStore } from '../usePlanStore';
 
@@ -43,6 +44,7 @@ export async function createTemplatePlan(name: string): Promise<Plan> {
       ...c,
       passengerIds: [...c.passengerIds],
       itemIds: [...c.itemIds],
+      waypoints: [...c.waypoints],
     })),
   };
   await cloudPlanRepo.put(plan);
@@ -55,7 +57,7 @@ export async function duplicatePlan(sourceId: string): Promise<Plan> {
   if (!src) throw new Error(`找不到要複製的安排：${sourceId}`);
   const now = Date.now();
   const clone: Plan = {
-    ...structuredClone(src),
+    ...structuredClone(normalizePlan(src)),
     id: uuid(),
     name: `${src.name} (副本)`,
     createdAt: now,
@@ -83,7 +85,7 @@ export async function deletePlan(id: string): Promise<void> {
 }
 
 export async function importPlanFromText(text: string): Promise<Plan> {
-  const parsed = parsePlanJson(text);
+  const parsed = normalizePlan(parsePlanJson(text));
   const now = Date.now();
   const plan: Plan = {
     ...parsed,
@@ -100,6 +102,7 @@ export async function importPlanFromText(text: string): Promise<Plan> {
 export async function loadPlanForEdit(id: string): Promise<Plan | null> {
   const plan = await cloudPlanRepo.get(id);
   if (!plan) return null;
-  usePlanStore.getState().setCurrentPlan(plan);
-  return plan;
+  const normalized = normalizePlan(plan);
+  usePlanStore.getState().setCurrentPlan(normalized);
+  return normalized;
 }

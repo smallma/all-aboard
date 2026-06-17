@@ -33,8 +33,8 @@ export function PassengerChip({ passenger, placement, onRemove }: Props): JSX.El
   // Only apply transform when in staging — in-car chips use DragOverlay for positioning.
   const style: CSSProperties =
     placement === 'staging'
-      ? { transform: CSS.Translate.toString(transform) }
-      : {};
+      ? { transform: CSS.Translate.toString(transform), touchAction: 'none' }
+      : { touchAction: 'none' };
 
   function handleRemove(event: MouseEvent<HTMLButtonElement>): void {
     event.stopPropagation();
@@ -56,7 +56,7 @@ export function PassengerChip({ passenger, placement, onRemove }: Props): JSX.El
         ref={setRef}
         style={style}
         className={clsx(
-          'inline-flex items-center rounded-full bg-white border border-slate-200 px-2 py-1 gap-2 transition',
+          'inline-flex touch-none select-none items-center rounded-full bg-white border border-slate-200 px-2 py-1 gap-2 transition',
           isDragging && 'opacity-50',
           dropHintActive && 'border-dashed border-amber-300',
           dropHighlight && 'ring-2 ring-amber-400 border-amber-400 bg-amber-50',
@@ -80,7 +80,7 @@ export function PassengerChip({ passenger, placement, onRemove }: Props): JSX.El
       ref={setRef}
       style={style}
       className={clsx(
-        'group relative inline-flex flex-col items-center gap-0.5 transition',
+        'group relative inline-flex touch-none select-none flex-col items-center gap-0.5 transition',
         isDragging && 'opacity-50',
         dropHighlight && 'ring-2 ring-amber-400 rounded-full bg-amber-50',
       )}

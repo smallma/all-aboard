@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { motion, useAnimation } from 'framer-motion';
-import { Trash2 } from 'lucide-react';
+import { MapPin, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { CAR_SPECS } from '@/lib/constants';
 import type { Car, Item, Passenger, Plan } from '@/lib/types';
@@ -20,9 +20,10 @@ type Props = {
   car: Car;
   plan: Plan;
   onAddCar?: () => void;
+  onEditWaypoints?: () => void;
 };
 
-export function CarView({ car, plan, onAddCar }: Props) {
+export function CarView({ car, plan, onAddCar, onEditWaypoints }: Props) {
   const spec = CAR_SPECS[car.type];
   const driver = car.driverId
     ? plan.passengers.find((p) => p.id === car.driverId) ?? null
@@ -83,6 +84,14 @@ export function CarView({ car, plan, onAddCar }: Props) {
         <div className="flex items-center gap-1">
           <button
             type="button"
+            onClick={onEditWaypoints}
+            aria-label="編輯停靠站"
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-sky-50 hover:text-sky-600"
+          >
+            <MapPin className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
             onClick={onDelete}
             aria-label="刪除車輛"
             className="p-1.5 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"
@@ -92,8 +101,26 @@ export function CarView({ car, plan, onAddCar }: Props) {
         </div>
       </header>
 
+      {car.waypoints.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {car.waypoints.map((waypoint, index) => (
+            <span
+              key={waypoint.id}
+              className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-1 text-[11px] font-medium text-sky-800"
+            >
+              <MapPin className="h-3 w-3" />
+              {['A', 'B', 'C'][index]} {waypoint.location}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* ── Body: 車體 (左/上) + 裝備籃 (右/下) ── */}
-      <div className="flex flex-col min-[1980px]:flex-row items-start gap-3">
+      <div
+        className={clsx(
+          'flex flex-col items-center gap-3 min-[1980px]:flex-row min-[1980px]:items-start',
+        )}
+      >
         {/* 左側：車體俯視圖 */}
         <motion.div
           className="relative flex-shrink-0"

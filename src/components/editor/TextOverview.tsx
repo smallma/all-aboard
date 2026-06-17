@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Car as CarIcon, Package, Trash2, UserCircle2, X } from 'lucide-react';
+import { Car as CarIcon, MapPin, Package, Trash2, UserCircle2, X } from 'lucide-react';
 import { CAR_SPECS } from '@/lib/constants';
 import type { Car, Item, Passenger, Plan } from '@/lib/types';
 import { Avatar } from '../shared/Avatar';
@@ -13,9 +13,10 @@ import { AddItemDialog } from '../staging/AddItemDialog';
 
 type Props = {
   plan: Plan;
+  onEditWaypoints?: (car: Car) => void;
 };
 
-export function TextOverview({ plan }: Props) {
+export function TextOverview({ plan, onEditWaypoints }: Props) {
   const [editingPassenger, setEditingPassenger] = useState<Passenger | null>(null);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
 
@@ -44,12 +45,27 @@ export function TextOverview({ plan }: Props) {
               <CarHeader
                 car={car}
                 driver={findP(car.driverId)}
+                onEditWaypoints={() => onEditWaypoints?.(car)}
                 onDelete={() => {
                   const driver = findP(car.driverId);
                   const title = driver ? `${driver.name} 的車` : `${car.type}`;
                   if (window.confirm(`刪除「${title}」？`)) deleteCar(car.id);
                 }}
               />
+
+              {car.waypoints.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {car.waypoints.map((waypoint, waypointIndex) => (
+                    <span
+                      key={waypoint.id}
+                      className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-1 text-xs font-medium text-sky-800"
+                    >
+                      <MapPin className="h-3.5 w-3.5" />
+                      {['A', 'B', 'C'][waypointIndex]} {waypoint.location}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               <div className="mt-3 grid sm:grid-cols-2 gap-3">
                 <div>
@@ -124,10 +140,12 @@ export function TextOverview({ plan }: Props) {
 function CarHeader({
   car,
   driver,
+  onEditWaypoints,
   onDelete,
 }: {
   car: Car;
   driver: Passenger | null;
+  onEditWaypoints?: () => void;
   onDelete: () => void;
 }) {
   const title = driver ? `${driver.name} 的車` : '請指派司機';
@@ -154,14 +172,24 @@ function CarHeader({
           <p className="text-xs text-slate-400">{car.type}</p>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={onDelete}
-        aria-label="刪除車輛"
-        className="p-1.5 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={onEditWaypoints}
+          aria-label="編輯停靠站"
+          className="p-1.5 rounded-lg text-slate-400 hover:bg-sky-50 hover:text-sky-600"
+        >
+          <MapPin className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label="刪除車輛"
+          className="p-1.5 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
     </header>
   );
 }
